@@ -1,0 +1,366 @@
+{
+  "@yetal_products": [
+    {
+      "title": "**Yetal** The product 💰",
+      "description": "**Yetal** The product 💰 Price: ETB 20.00 📍 Location: Addis Abaab 📞 Contact: +251912345678",
+      "price": "",
+      "phone": "+251912345678",
+      "location": "Location: Addis Abaab",
+      "images": [
+        "downloaded_images/yetal_products/__Yetal__ The product __7_0.jpg"
+      ],
+      "date": "2025-09-15 15:38:18",
+      "channel": "@yetal_products"
+    },
+    {
+      "title": "**Yetal** The product 💰",
+      "description": "**Yetal** The product 💰 Price: ETB 20.00 📍 Location: Addis Abaab 📞 Contact: +251912345678",
+      "price": "",
+      "phone": "+251912345678",
+      "location": "Location: Addis Abaab",
+      "images": [
+        "downloaded_images/yetal_products/__Yetal__ The product __6_0.jpg"
+      ],
+      "date": "2025-09-15 15:38:18",
+      "channel": "@yetal_products"
+    },
+    {
+      "title": "**yet** yetal 💰",
+      "description": "**yet** yetal 💰 Price: ETB 30.00 📍 Location: Addis ababa 📞 Contact: +251912345678",
+      "price": "",
+      "phone": "+251912345678",
+      "location": "Location: Addis ababa",
+      "images": [
+        "downloaded_images/yetal_products/__yet__ yetal __5_0.jpg"
+      ],
+      "date": "2025-09-15 14:01:03",
+      "channel": "@yetal_products"
+    },
+    {
+      "title": "**yet** yetal 💰",
+      "description": "**yet** yetal 💰 Price: ETB 30.00 📍 Location: Addis ababa 📞 Contact: +251912345678",
+      "price": "",
+      "phone": "+251912345678",
+      "location": "Location: Addis ababa",
+      "images": [
+        "downloaded_images/yetal_products/__yet__ yetal __4_0.jpg"
+      ],
+      "date": "2025-09-15 14:01:02",
+      "channel": "@yetal_products"
+    },
+    {
+      "title": "🛒 Bekele Bekeaklu",
+      "description": "🛒 Bekele Bekeaklu",
+      "price": "",
+      "phone": "",
+      "location": "",
+      "images": [
+        "downloaded_images/yetal_products/_ Bekele Bekeaklu_3_0.jpg"
+      ],
+      "date": "2025-09-15 13:53:55",
+      "channel": "@yetal_products"
+    },
+    {
+      "title": "jk",
+      "description": "jk",
+      "price": "",
+      "phone": "",
+      "location": "",
+      "images": null,
+      "date": "2025-09-15 11:55:55",
+      "channel": "@yetal_products"
+    }
+  ],
+  "@Yetal_Search": [
+    {
+      "title": "{ \"type\": \"product_ref\", \"date\": \"2025-09-15T18:38:17.820951\", \"title\": \"Yetal\", \"description\": \"The",
+      "description": "{ \"type\": \"product_ref\", \"date\": \"2025-09-15T18:38:17.820951\", \"title\": \"Yetal\", \"description\": \"The product\", \"price\": \"20.0\", \"contact\": \"+251912345678\", \"location\": \"Addis Abaab\", \"image\": \"AgACAgQAAxkBAAOMaMgy0Et-cq9T9tGxF5B7vNO9l9QAAqDJMRsipkBS2PukYqrEbxoBAAMCAAN4AAM2BA\", \"channel\": \"@yetal_products\", \"product_ref\": \"66357a2e-b758-4163-9a4b-412e81366301\" }",
+      "price": "",
+      "phone": "+251912345678",
+      "location": "\": \"Addis Abaab\", \"image\": \"AgACAgQAAxkBAAOMaMgy0Et-cq9T9tGxF5B7vNO9l9QAAqDJMRsipkBS2PukYqrEbxoBAAMCAAN4AAM2BA\", \"channel\": \"",
+      "images": null,
+      "date": "2025-09-15 15:38:18",
+      "channel": "@yetal_products"
+    },
+    {
+      "title": "{ \"type\": \"channel_ref\", \"date\": \"2025-09-15T18:37:29.463107\", \"channel\": \"@yetal_products\", \"phone\"",
+      "description": "{ \"type\": \"channel_ref\", \"date\": \"2025-09-15T18:37:29.463107\", \"channel\": \"@yetal_products\", \"phone\": \"+251912345678\", \"location\": \"Addis Abaab\" }",
+      "price": "",
+      "phone": "+251912345678",
+      "location": "\": \"Addis Abaab\" }",
+      "images": null,
+      "date": "2025-09-15 15:37:29",
+      "channel": "@yetal_products"
+    },
+    {
+      "title": "{ \"type\": \"product_ref\", \"date\": \"2025-09-15T17:01:02.195689\", \"title\": \"yet\", \"description\": \"yetal",
+      "description": "{ \"type\": \"product_ref\", \"date\": \"2025-09-15T17:01:02.195689\", \"title\": \"yet\", \"description\": \"yetal\", \"price\": \"30.0\", \"contact\": \"+251912345678\", \"location\": \"Addis ababa\", \"image\": \"AgACAgQAAxkBAAMnaMgYRbh6V-erh656OgS9iGTXaZIAAhzOMRtwPEFSB04gNGQo51gBAAMCAAN4AAM2BA\", \"channel\": \"@yetal_products\", \"product_ref\": \"d1eccf39-b389-4c26-a913-c11c7d197a83\" }",
+      "price": "",
+      "phone": "+251912345678",
+      "location": "\": \"Addis ababa\", \"image\": \"AgACAgQAAxkBAAMnaMgYRbh6V-erh656OgS9iGTXaZIAAhzOMRtwPEFSB04gNGQo51gBAAMCAAN4AAM2BA\", \"channel\": \"",
+      "images": null,
+      "date": "2025-09-15 14:01:02",
+      "channel": "@yetal_products"
+    },
+    {
+      "title": "{ \"type\": \"channel_ref\", \"date\": \"2025-09-15T17:00:13.813608\", \"channel\": \"@yetal_products\", \"phone\"",
+      "description": "{ \"type\": \"channel_ref\", \"date\": \"2025-09-15T17:00:13.813608\", \"channel\": \"@yetal_products\", \"phone\": \"+251912345678\", \"location\": \"Addis ababa\" }",
+      "price": "",
+      "phone": "+251912345678",
+      "location": "\": \"Addis ababa\" }",
+      "images": null,
+      "date": "2025-09-15 14:00:14",
+      "channel": "@yetal_products"
+    },
+    {
+      "title": "🛒 New product added: Title: Bekele Description: Bekeaklu Channel: @yetal_products",
+      "description": "🛒 New product added: Title: Bekele Description: Bekeaklu Channel: @yetal_products",
+      "price": "",
+      "phone": "",
+      "location": "",
+      "images": null,
+      "date": "2025-09-15 13:53:55",
+      "channel": "@yetal_products"
+    },
+    {
+      "title": "bekelu",
+      "description": "bekelu",
+      "price": "",
+      "phone": "",
+      "location": "",
+      "images": null,
+      "date": "2025-09-15 11:57:20",
+      "channel": "@Yetal_Search"
+    }
+  ],
+  "@CosmeticsworldEthiopia": [
+    {
+      "title": "Original Nature made Prenatal Available in our Shop",
+      "description": "Original Nature made Prenatal Available in our Shop 💸6299ETB ☎️Contact- +251946722733 @yonimergia 📍Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "price": "6299",
+      "phone": "+251946722733",
+      "location": "Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "images": [
+        "downloaded_images/CosmeticsworldEthiopia/Original Nature made Prenatal _4095_0.jpg"
+      ],
+      "date": "2025-09-15 14:27:01",
+      "channel": "@yonimergia"
+    },
+    {
+      "title": "Maybelline Sky High mascara Available in our Shop",
+      "description": "Maybelline Sky High mascara Available in our Shop 💸4499ETB ☎️Contact- +251946722733 📍Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have free delivery service ወደ ክፍለሀገር እንልካለን",
+      "price": "4499",
+      "phone": "+251946722733",
+      "location": "Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have free delivery service ወደ ክፍለሀገር እንልካለን",
+      "images": [
+        "downloaded_images/CosmeticsworldEthiopia/Maybelline Sky High mascara Av_4094_0.jpg"
+      ],
+      "date": "2025-09-15 10:37:34",
+      "channel": "@CosmeticsworldEthiopia"
+    },
+    {
+      "title": "ውድ ደንበኛችን! እንኳን ለ2018 ዓ.ም አዲስ ዓመት በሰላም አደረሰዎ! በዓሉ የሰላም፣የጤና፣ የፍቅር፣ የደስታ፣የመተሳሰብ እና የስኬት ዘመን እንዲሆልዎ በኮስ",
+      "description": "ውድ ደንበኛችን! እንኳን ለ2018 ዓ.ም አዲስ ዓመት በሰላም አደረሰዎ! በዓሉ የሰላም፣የጤና፣ የፍቅር፣ የደስታ፣የመተሳሰብ እና የስኬት ዘመን እንዲሆልዎ በኮስሞቲክስወርልድኢትዮጵያ እና በራሴ ስም ከልብ እመኛለሁ።ለድርጅታችን ላሳዩት እምነትና ለሰጡን ድጋፍ እጅግ አመሰግናለሁ። በአዲሱ ዓመት በላቀ እርስዎን ለማገልገል እና ከእርስዎ ጋር በቅርበት ለመስራት ሁሌም ዝግጁ ነን። መልካም አዲስ ዓመት! ዮናታን መርጊያ ዋና ሥራ አስኪያጅ",
+      "price": "",
+      "phone": "",
+      "location": "",
+      "images": null,
+      "date": "2025-09-11 07:33:00",
+      "channel": "@CosmeticsworldEthiopia"
+    },
+    {
+      "title": "Original bath and body Home Fragnance oil Availble in our Shop",
+      "description": "Original bath and body Home Fragnance oil Availble in our Shop 💸3499ETB ☎️Contact- +251946722733 📍Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "price": "3499",
+      "phone": "+251946722733",
+      "location": "Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "images": [
+        "downloaded_images/CosmeticsworldEthiopia/Original bath and body Home Fr_4092_0.jpg"
+      ],
+      "date": "2025-09-09 05:38:37",
+      "channel": "@CosmeticsworldEthiopia"
+    },
+    {
+      "title": "Original bath and body Home Fragnance oil Availble in our Shop",
+      "description": "Original bath and body Home Fragnance oil Availble in our Shop 💸3499ETB ☎️Contact- +251946722733 📍Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "price": "3499",
+      "phone": "+251946722733",
+      "location": "Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "images": [
+        "downloaded_images/CosmeticsworldEthiopia/Original bath and body Home Fr_4091_0.jpg"
+      ],
+      "date": "2025-09-09 05:38:37",
+      "channel": "@CosmeticsworldEthiopia"
+    },
+    {
+      "title": "Original bath and body Home Fragnance oil Availble in our Shop",
+      "description": "Original bath and body Home Fragnance oil Availble in our Shop 💸3499ETB ☎️Contact- +251946722733 📍Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "price": "3499",
+      "phone": "+251946722733",
+      "location": "Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "images": [
+        "downloaded_images/CosmeticsworldEthiopia/Original bath and body Home Fr_4090_0.jpg"
+      ],
+      "date": "2025-09-09 05:38:37",
+      "channel": "@CosmeticsworldEthiopia"
+    },
+    {
+      "title": "Original bath and body Home Fragnance Availble in our Shop",
+      "description": "Original bath and body Home Fragnance Availble in our Shop 💸5499ETB ☎️Contact- +251946722733 📍Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "price": "5499",
+      "phone": "+251946722733",
+      "location": "Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "images": [
+        "downloaded_images/CosmeticsworldEthiopia/Original bath and body Home Fr_4089_0.jpg"
+      ],
+      "date": "2025-09-09 05:38:36",
+      "channel": "@CosmeticsworldEthiopia"
+    },
+    {
+      "title": "Original bath and body Home Fragnance Availble in our Shop",
+      "description": "Original bath and body Home Fragnance Availble in our Shop 💸4999ETB ☎️Contact- +251946722733 📍Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "price": "4999",
+      "phone": "+251946722733",
+      "location": "Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "images": [
+        "downloaded_images/CosmeticsworldEthiopia/Original bath and body Home Fr_4088_0.jpg"
+      ],
+      "date": "2025-09-09 05:38:36",
+      "channel": "@CosmeticsworldEthiopia"
+    },
+    {
+      "title": "Original bath and body Home Fragnance Availble in our Shop",
+      "description": "Original bath and body Home Fragnance Availble in our Shop 💸5499ETB ☎️Contact- +251946722733 📍Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "price": "5499",
+      "phone": "+251946722733",
+      "location": "Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "images": [
+        "downloaded_images/CosmeticsworldEthiopia/Original bath and body Home Fr_4087_0.jpg"
+      ],
+      "date": "2025-09-09 05:38:36",
+      "channel": "@CosmeticsworldEthiopia"
+    },
+    {
+      "title": "Original bath and body Home Fragnance Availble in our Shop",
+      "description": "Original bath and body Home Fragnance Availble in our Shop 💸4999ETB ☎️Contact- +251946722733 📍Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "price": "4999",
+      "phone": "+251946722733",
+      "location": "Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "images": [
+        "downloaded_images/CosmeticsworldEthiopia/Original bath and body Home Fr_4086_0.jpg"
+      ],
+      "date": "2025-09-09 05:38:36",
+      "channel": "@CosmeticsworldEthiopia"
+    },
+    {
+      "title": "Original bath and body Home Fragnance Availble in our Shop",
+      "description": "Original bath and body Home Fragnance Availble in our Shop 💸5499ETB ☎️Contact- +251946722733 📍Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "price": "5499",
+      "phone": "+251946722733",
+      "location": "Bole Medhanialem infront of Saro Maria Hotel Trans world building 2nd floor 🥀CosmeticsworldEthiopia🥀 We do have delivery service ወደ ክፍለሀገር እንልካለን",
+      "images": [
+        "downloaded_images/CosmeticsworldEthiopia/Original bath and body Home Fr_4085_0.jpg"
+      ],
+      "date": "2025-09-09 05:36:33",
+      "channel": "@CosmeticsworldEthiopia"
+    }
+  ],
+  "@samia_s": [
+    {
+      "title": "☘️☘️☘️**RESTOCKED** ☘️☘️☘️ 🍇**TheraBreath mouthwashes__🍇__**__ __ TheraBreath mouthwashes contain po",
+      "description": "☘️☘️☘️**RESTOCKED** ☘️☘️☘️ 🍇**TheraBreath mouthwashes__🍇__**__ __ TheraBreath mouthwashes contain powerful compounds to help stop bad breath in its tracks, rather than just masking its symptoms. Since introduction of its original popular oral rinse, TheraBreath has expanded its line of oxygenating mouthwashes. That means anyone with bad breath can select the best mouthwash to address their specific level of bad breath, ensuring their breath stays fresh all day long. Specially formulated [mouthwash for kids](https://www.therabreath.com/collections/oral-health-products-for-kids) freshens breath and helps prevent cavities, while other oral rinses promote healthy gums, whiten teeth, alleviate tooth sensitivity, and fight dry mouth. How Does TheraBreath Mouthwash Work? TheraBreath oral rinses stimulate saliva flow and circulate antibacterial, oxygen-rich saliva to all areas of the mouth, directly attacking the bacteria lurking in all these places. ☘️☘️**PRICE 4000 ☘️☘️SIZE 473 ML ** 📞በ **0911410443** ይደውሉልንt! 🌺🌺**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺** ☘️unlock_your_natural_beauty☘️",
+      "price": "4000",
+      "phone": "0911410443",
+      "location": "their specific level of bad breath, ensuring their breath stays fresh all day long. Specially formulated [mouthwash for kids](https://www.therabreath.com/collections/oral-health-products-for-kids) freshens breath and helps prevent cavities, while other oral rinses promote healthy gums, whiten teeth, alleviate tooth sensitivity, and fight dry mouth. How Does TheraBreath Mouthwash Work? TheraBreath oral rinses stimulate saliva flow and circulate antibacterial, oxygen-rich saliva to all areas of the mouth, directly attacking the bacteria lurking in all these places.",
+      "images": [
+        "downloaded_images/samia_s/________RESTOCKED__ ______ ____2517_0.jpg"
+      ],
+      "date": "2025-09-15 16:34:01",
+      "channel": "@samia_s"
+    },
+    {
+      "title": "🍇**ASPEN NATURALS Bovine Collagen Peptides Powder__🍇__**__ __ 🌿**Hair, Nails, Skin: **Grass fed coll",
+      "description": "🍇**ASPEN NATURALS Bovine Collagen Peptides Powder__🍇__**__ __ 🌿**Hair, Nails, Skin: **Grass fed collagen powder for women and men to support their body inside and out. Collagen protein is one of the top collagen supplements for women and men because of how many amazing benefits it provides. 🌿**Sourced From USDA Inspected Cattle: **Aspen naturals has all of their ingredients 3rd party tested, so we know that our collagen peptides powder comes from the purest sources and goes through the proper hydrolyzation process to produce the best-tasting collagen powder. 🌿**Beautiful Hair, Skin, & Nails: **Collagen is the building block for your hair, skin, and nails. 🌿**Replenish Lost Collagen: **Collagen deficiency is often linked to discomfort and mobility issues for men and women ☘️☘️**PRICE ☘️☘️SIZE 667 GM ** 📞በ **0911410443** ይደውሉልንt! 🌺🌺**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺** ☘️unlock_your_natural_beauty☘️",
+      "price": "",
+      "phone": "0911410443",
+      "location": "**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺**",
+      "images": [
+        "downloaded_images/samia_s/___ASPEN NATURALS Bovine Colla_2513_0.jpg"
+      ],
+      "date": "2025-09-15 16:27:51",
+      "channel": "@samia_s"
+    },
+    {
+      "title": "🍇**Paradigme Eau de Parfum__🍇__**__ __** Paradigme Eau de Parfum-PRADA ** 🌿**Fragrance Family:** Amb",
+      "description": "🍇**Paradigme Eau de Parfum__🍇__**__ __** Paradigme Eau de Parfum-PRADA ** 🌿**Fragrance Family:** Ambery Woody 🌿**Key Notes:** Ambery Woods, Bourbon Geranium, Calabrian Bergamot 🌿**Product Details:** Paradigme, a fragrance that transcends traditional preconceptions by asking – what if there’s another way? A question as an invitation to experiment and open new perspectives. Paradigme Eau de Parfum expresses sophistication and avant-garde in an unexpected masculine ambery woody scent. **The Scent:** The warm sensuality of ambery woods is entwined with a green bourbon geranium, uplifted by a fusing Calabrian bergamot heart. **The Bottle:** The Prada Paradigme bottle invites curiosity with an architectural silhouette of elegance and an avant-garde statement through the tilted Prada triangle. A bottle lacquered in a black to green gradation, the house’s iconic color. ☘️☘️**PRICE ☘️☘️SIZE 100ML ** 📞በ **0911410443** ይደውሉልንt! 🌺🌺**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺** ☘️unlock_your_natural_beauty☘️",
+      "price": "",
+      "phone": "0911410443",
+      "location": "**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺**",
+      "images": [
+        "downloaded_images/samia_s/___Paradigme Eau de Parfum_____2508_0.jpg"
+      ],
+      "date": "2025-09-14 13:48:23",
+      "channel": "@samia_s"
+    },
+    {
+      "title": "🌿🌿**Restocked**🌿🌿 🍇 Fivona **🍇 ☘️በቀ**ላሉ በመፀዳጃ ቤት ውስጥ መቀመጫው ላይ በማድረግ ሰቲም ለማድረግ የሚያስችል☘️ ✨ RELAXING YO",
+      "description": "🌿🌿**Restocked**🌿🌿 🍇 Fivona **🍇 ☘️በቀ**ላሉ በመፀዳጃ ቤት ውስጥ መቀመጫው ላይ በማድረግ ሰቲም ለማድረግ የሚያስችል☘️ ✨ RELAXING YONI SPA AT HOME Have a luxurious and easy way to steam your most delicate area. 🌸 RELAX, DETOX AND REJUVENATE Yoni steaming can help with v-detox, maintaining ph balance, preventing v-odor, enhancing fertility, alleviating emotional stress, relieving menopause symptoms, relieving muscle discomfort and relaxing the whole body. 💐 UNIVERSAL FIT DESIGN 🌷 MADE WITH CARE IN MIND Fivona Seat is made with temperature-resistant materials that allow it to withstand water temperature ideal for yoni steaming 🌹 100% NATURAL INGREDIENTS Choose delicate and organic herbs for your most delicate area! 🍇HAVE A GOOD SELF-CARE PRACTICE WITH YONI STEAMING! ☘️☘️**PRICE ** 📞በ **0911410443** ይደውሉልንt! 🌺🌺**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺** ☘️unlock_your_natural_beauty☘️",
+      "price": "",
+      "phone": "0911410443",
+      "location": "**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺**",
+      "images": [
+        "downloaded_images/samia_s/____Restocked____ _ Fivona ____2503_0.jpg"
+      ],
+      "date": "2025-09-10 14:02:08",
+      "channel": "@samia_s"
+    },
+    {
+      "title": "🍇**Bakuchiol Plumping Serum** ** __🍇__**__ __** **This serum features bakuchiol (a natural alternati",
+      "description": "🍇**Bakuchiol Plumping Serum** ** __🍇__**__ __** **This serum features bakuchiol (a natural alternative to retinol) and allantoin to promote collagen production and diminish signs of aging. It’s enriched with five types of ceramides and various peptides to reinforce the skin barrier, lock in moisture and protect skin against external aggressors. The serum also contains niacinamide and glycerin to balance oil and moisture levels while minimizing enlarged pores. Reveal firmer, smoother skin with the EQQUALBERRY Bakuchiol Plumping Serum, a gentle yet powerful alternative to retinol perfect for sensitive skin. Formulated with 5,000ppm of bakuchiol, this non-irritating serum boosts collagen production to visibly reduce fine lines and improve... ☘️☘️**PRICE 4800 ☘️☘️SIZE 30 Ml ** 📞በ **0911410443** ይደውሉልንt! 🌺🌺**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺** ☘️unlock_your_natural_beauty☘️",
+      "price": "4800",
+      "phone": "0911410443",
+      "location": "**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺**",
+      "images": [
+        "downloaded_images/samia_s/___Bakuchiol Plumping Serum__ _2496_0.jpg"
+      ],
+      "date": "2025-09-10 09:40:13",
+      "channel": "@samia_s"
+    },
+    {
+      "title": "🍇**Celimax The Vita A Retinol Shot Tightening Booster __🍇__**__ __** **Celimax The Vita A Retinol Sh",
+      "description": "🍇**Celimax The Vita A Retinol Shot Tightening Booster __🍇__**__ __** **Celimax The Vita A Retinol Shot Tightening Booster is an innovative skincare product containing liposomized retinal and Matrixyl, designed to address skin concerns such as wrinkles, uneven texture, and enlarged pores. Combined with A-Shot™ technology, it enhances the delivery of these ingredients. · Contains 0.1% liposomized retinal, 3% Matrixyl, 1% panthenol, and 20,250 A-Shot™ · Clinically proven to improve wrinkles and reduce pore size · Clinically proven to enhance skin density for firmer skin ☘️☘️**PRICE 5500 ☘️☘️SIZE 15ML ** 📞በ **0911410443** ይደውሉልንt! 🌺🌺**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺** ☘️unlock_your_natural_beauty☘️",
+      "price": "5500",
+      "phone": "0911410443",
+      "location": "skin concerns such as wrinkles, uneven texture, and enlarged pores. Combined with A-Shot™ technology, it enhances the delivery of these ingredients. · Contains 0.1% liposomized retinal, 3% Matrixyl, 1% panthenol, and 20,250 A-Shot™ · Clinically proven to improve wrinkles and reduce pore size · Clinically proven to enhance skin density for firmer skin",
+      "images": [
+        "downloaded_images/samia_s/___Celimax The Vita A Retinol _2493_0.jpg"
+      ],
+      "date": "2025-09-10 07:44:43",
+      "channel": "@samia_s"
+    },
+    {
+      "title": "🍇**Celimax The Vita A Retinol Shot Tightening Serum __🍇__**__ __** **Celimax The Vita A Retinol Shot",
+      "description": "🍇**Celimax The Vita A Retinol Shot Tightening Serum __🍇__**__ __** **Celimax The Vita A Retinol Shot Tightening Serum is an innovative skincare product containing pure retinol and a peptide complex to address skin concerns such as wrinkles, uneven texture, and enlarged pores. Combined with A-Shot™ technology, it enhances the delivery of these ingredients. · Contains 0.1% pure retinol, 9-peptide complex, 1% panthenol, and 162,000 A-Shot™ · Clinically proven to improve wrinkles and reduce pore size · Clinically proven to enhance skin density for firmer skin ☘️☘️**PRICE 5500 ☘️☘️SIZE 30ML ** 📞በ **0911410443** ይደውሉልንt! 🌺🌺**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺** ☘️unlock_your_natural_beauty☘️",
+      "price": "5500",
+      "phone": "0911410443",
+      "location": "skin concerns such as wrinkles, uneven texture, and enlarged pores. Combined with A-Shot™ technology, it enhances the delivery of these ingredients. · Contains 0.1% pure retinol, 9-peptide complex, 1% panthenol, and 162,000 A-Shot™ · Clinically proven to improve wrinkles and reduce pore size · Clinically proven to enhance skin density for firmer skin",
+      "images": [
+        "downloaded_images/samia_s/___Celimax The Vita A Retinol _2489_0.jpg"
+      ],
+      "date": "2025-09-10 07:40:45",
+      "channel": "@samia_s"
+    },
+    {
+      "title": "🍇VAGINAL PROBIOTICS __**🍇** __** **VAGINAL PROBIOTICS FOR WOMEN - Our Our vaginal health gummies sup",
+      "description": "🍇VAGINAL PROBIOTICS __**🍇** __** **VAGINAL PROBIOTICS FOR WOMEN - Our Our vaginal health gummies support your pH balance, immune defences and vaginal flora in a delicious way.Enjoy 60 Premium Feminine Balance Gummies In Each Pouch, Crafted For Your Daily Wellness.VivoNu Gummies Are Vegan, Gluten-Free And Halal.comprehensively enhance body immunity PREMIUM NATURAL INGREDIENTS - Provitalize for women,we’ve condensed all the benefits of traditional feminine support supplements into a tasty, convenient form. Our premium women's balancing gummies offer a delicious way to support your pH balance, immune defense and vaginal flora FEMININE CARE: High quality female gummies are rich in vitamin C and high-quality probiotics, which can balance the body's pH value, promote a healthier guide microbiota, and promote a healthier, odor free vagina. ☘️☘️**PRICE ☘️☘️SIZE ** 📞በ **0911410443** ይደውሉልንt! 🌺🌺**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺** ☘️unlock_your_natural_beauty☘️",
+      "price": "",
+      "phone": "0911410443",
+      "location": "**Address: Dembel City Center 1st flor , Shop No. 124🌺🌺**",
+      "images": [
+        "downloaded_images/samia_s/_VAGINAL PROBIOTICS _______ ___2484_0.jpg"
+      ],
+      "date": "2025-09-09 22:13:50",
+      "channel": "@samia_s"
+    }
+  ]
+}
