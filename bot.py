@@ -38,9 +38,7 @@ async def forward_last_24h(channel_username: str):
             messages_to_forward.append(message)
 
     if messages_to_forward:
-        # Maintain chronological order
         messages_to_forward.reverse()
-
         print(f"➡️ Forwarding {len(messages_to_forward)} messages from {channel_username}...")
         for i in range(0, len(messages_to_forward), 100):
             batch = messages_to_forward[i:i+100]
@@ -109,26 +107,15 @@ def list_channels(update, context):
     msg_lines = ["📃 <b>Saved Channels:</b>\n"]
     for ch in channels:
         username = ch.get("username")
-        if not username:
-            continue
-
-        try:
-            chat = context.bot.get_chat(username)
-            status = "✅"
-            title = chat.title
-            collection.update_one({"username": username}, {"$set": {"title": title}})
-        except BadRequest:
-            status = "❌"
-            title = ch.get("title", "Unknown")
-
-        msg_lines.append(f"{status} {username} — <b>{title}</b>")
+        title = ch.get("title", "Unknown")
+        msg_lines.append(f"{username} — <b>{title}</b>")
 
     msg = "\n".join(msg_lines)
     for chunk in [msg[i:i+4000] for i in range(0, len(msg), 4000)]:
         update.message.reply_text(chunk, parse_mode="HTML")
 
 # ======================
-# /checkchannel
+# /checkchannel (only checks MongoDB, no updates)
 # ======================
 def check_channel(update, context):
     if len(context.args) == 0:
@@ -140,18 +127,38 @@ def check_channel(update, context):
         update.message.reply_text("❌ Please provide a valid channel username starting with @")
         return
 
-    try:
-        chat = context.bot.get_chat(username)
+    doc = collection.find_one({"username": username})
+    if doc:
         update.message.reply_text(
-            f"🔍 <b>Channel check result:</b>\n\n"
-            f"✅ <b>Exists!</b>\n"
-            f"📌 <b>Name:</b> {chat.title}\n"
+            f"🔍 <b>Channel found in database!</b>\n\n"
+            f"📌 <b>Name:</b> {doc.get('title', 'Unknown')}\n"
             f"🔗 <b>Username:</b> {username}",
             parse_mode="HTML"
         )
-        collection.update_one({"username": username}, {"$set": {"title": chat.title}}, upsert=True)
-    except BadRequest as e:
-        update.message.reply_text(f"❌ Channel not found or inaccessible:\n<code>{str(e)}</code>", parse_mode="HTML")
+    else:
+        update.message.reply_text(
+            f"❌ Channel {username} is not in the database.",
+            parse_mode="HTML"
+        )
+
+# ======================
+# /deletechannel
+# ======================
+def delete_channel(update, context):
+    if len(context.args) == 0:
+        update.message.reply_text("⚡ Usage: /deletechannel @ChannelUsername")
+        return
+
+    username = context.args[0].strip()
+    if not username.startswith("@"):
+        update.message.reply_text("❌ Please provide a valid channel username starting with @")
+        return
+
+    result = collection.delete_one({"username": username})
+    if result.deleted_count > 0:
+        update.message.reply_text(f"✅ Channel {username} has been deleted from the database.")
+    else:
+        update.message.reply_text(f"⚠️ Channel {username} was not found in the database.")
 
 # ======================
 # Handle unknown commands
@@ -162,7 +169,8 @@ def unknown_command(update, context):
         "👉 Available commands:\n"
         "/addchannel @ChannelUsername\n"
         "/listchannels\n"
-        "/checkchannel @ChannelUsername"
+        "/checkchannel @ChannelUsername\n"
+        "/deletechannel @ChannelUsername"
     )
 
 # ======================
@@ -175,6 +183,7 @@ def main():
     dp.add_handler(CommandHandler("addchannel", add_channel))
     dp.add_handler(CommandHandler("listchannels", list_channels))
     dp.add_handler(CommandHandler("checkchannel", check_channel))
+    dp.add_handler(CommandHandler("deletechannel", delete_channel))
     dp.add_handler(MessageHandler(Filters.command, unknown_command))  # catch unknown commands
 
     print("🚀 Bot is running...")
