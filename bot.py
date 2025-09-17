@@ -14,11 +14,13 @@ MONGO_URI = os.getenv("MONGO_URI")
 API_ID = 24916488
 API_HASH = '3b7788498c56da1a02e904ff8e92d494'
 FORWARD_CHANNEL = os.getenv("FORWARD_CHANNEL")  # target channel username
+ADMIN_CODE = os.getenv("ADMIN_CODE")  # secret code for access
 
 # === ⚡ MongoDB Setup ===
 client = MongoClient(MONGO_URI)
 db = client["yetal"]
-collection = db["yetalcollection"]
+channels_collection = db["yetalcollection"]
+auth_collection = db["authorized_users"]  # store authorized user IDs
 
 # ======================
 # Forward last 24h posts from a given channel
@@ -61,8 +63,55 @@ async def forward_last_24h(channel_username: str):
         return False, f"📭 No posts found in the last 24h from {channel_username}."
 
 # ======================
-# /addchannel
+# /start command
 # ======================
+def start(update, context):
+    user_id = update.effective_user.id
+    if auth_collection.find_one({"user_id": user_id}):
+        update.message.reply_text(
+            "✅ You are already authorized!\nYou can now use the bot commands."
+        )
+    else:
+        update.message.reply_text(
+            "⚡ Welcome! Please enter your access code using /code YOUR_CODE"
+        )
+
+# ======================
+# /code command
+# ======================
+def code(update, context):
+    user_id = update.effective_user.id
+    if auth_collection.find_one({"user_id": user_id}):
+        update.message.reply_text("✅ You are already authorized!")
+        return
+
+    if len(context.args) == 0:
+        update.message.reply_text("⚠️ Usage: /code YOUR_ACCESS_CODE")
+        return
+
+    entered_code = context.args[0].strip()
+    if entered_code == ADMIN_CODE:
+        auth_collection.insert_one({"user_id": user_id})
+        update.message.reply_text("✅ Code accepted! You can now use the bot commands.")
+    else:
+        update.message.reply_text("❌ Invalid code. Access denied.")
+
+# ======================
+# Wrapper for command authorization
+# ======================
+def authorized(func):
+    def wrapper(update, context, *args, **kwargs):
+        user_id = update.effective_user.id
+        if not auth_collection.find_one({"user_id": user_id}):
+            update.message.reply_text("❌ You must enter a valid code first. Use /start to begin.")
+            return
+        return func(update, context, *args, **kwargs)
+    return wrapper
+
+# ======================
+# Bot commands
+# ======================
+@authorized
 def add_channel(update, context):
     if len(context.args) == 0:
         update.message.reply_text("⚡ Usage: /addchannel @ChannelUsername")
@@ -73,13 +122,13 @@ def add_channel(update, context):
         update.message.reply_text("❌ Please provide a valid channel username starting with @")
         return
 
-    if collection.find_one({"username": username}):
+    if channels_collection.find_one({"username": username}):
         update.message.reply_text("⚠️ This channel is already saved in the database.")
         return
 
     try:
         chat = context.bot.get_chat(username)
-        collection.insert_one({"username": username, "title": chat.title})
+        channels_collection.insert_one({"username": username, "title": chat.title})
         update.message.reply_text(
             f"✅ <b>Channel saved successfully!</b>\n\n"
             f"📌 <b>Name:</b> {chat.title}\n"
@@ -95,11 +144,9 @@ def add_channel(update, context):
     except BadRequest as e:
         update.message.reply_text(f"❌ Could not add channel:\n<code>{str(e)}</code>", parse_mode="HTML")
 
-# ======================
-# /listchannels
-# ======================
+@authorized
 def list_channels(update, context):
-    channels = list(collection.find({}))
+    channels = list(channels_collection.find({}))
     if not channels:
         update.message.reply_text("📭 No channels saved yet.")
         return
@@ -114,9 +161,7 @@ def list_channels(update, context):
     for chunk in [msg[i:i+4000] for i in range(0, len(msg), 4000)]:
         update.message.reply_text(chunk, parse_mode="HTML")
 
-# ======================
-# /checkchannel (only checks MongoDB, no updates)
-# ======================
+@authorized
 def check_channel(update, context):
     if len(context.args) == 0:
         update.message.reply_text("⚡ Usage: /checkchannel @ChannelUsername")
@@ -127,7 +172,7 @@ def check_channel(update, context):
         update.message.reply_text("❌ Please provide a valid channel username starting with @")
         return
 
-    doc = collection.find_one({"username": username})
+    doc = channels_collection.find_one({"username": username})
     if doc:
         update.message.reply_text(
             f"🔍 <b>Channel found in database!</b>\n\n"
@@ -141,9 +186,7 @@ def check_channel(update, context):
             parse_mode="HTML"
         )
 
-# ======================
-# /deletechannel
-# ======================
+@authorized
 def delete_channel(update, context):
     if len(context.args) == 0:
         update.message.reply_text("⚡ Usage: /deletechannel @ChannelUsername")
@@ -154,15 +197,13 @@ def delete_channel(update, context):
         update.message.reply_text("❌ Please provide a valid channel username starting with @")
         return
 
-    result = collection.delete_one({"username": username})
+    result = channels_collection.delete_one({"username": username})
     if result.deleted_count > 0:
         update.message.reply_text(f"✅ Channel {username} has been deleted from the database.")
     else:
         update.message.reply_text(f"⚠️ Channel {username} was not found in the database.")
 
-# ======================
-# Handle unknown commands
-# ======================
+@authorized
 def unknown_command(update, context):
     update.message.reply_text(
         "❌ Unknown command.\n\n"
@@ -180,11 +221,13 @@ def main():
     updater = Updater(BOT_TOKEN, use_context=True)
     dp = updater.dispatcher
 
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("code", code))
     dp.add_handler(CommandHandler("addchannel", add_channel))
     dp.add_handler(CommandHandler("listchannels", list_channels))
     dp.add_handler(CommandHandler("checkchannel", check_channel))
     dp.add_handler(CommandHandler("deletechannel", delete_channel))
-    dp.add_handler(MessageHandler(Filters.command, unknown_command))  # catch unknown commands
+    dp.add_handler(MessageHandler(Filters.command, unknown_command))
 
     print("🚀 Bot is running...")
     updater.start_polling()
