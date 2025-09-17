@@ -1,27 +1,32 @@
-import json
-import re
 import os
-from datetime import datetime, timedelta
+import re
+import json
+import asyncio
+from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
-from telethon.sync import TelegramClient
-from telethon.tl.types import MessageMediaPhoto
+from telethon import TelegramClient
 from dotenv import load_dotenv
 
-# === 🔐 Load environment variables ===
+# === 🔐 Load environment ===
 load_dotenv()
-api_id = 24916488    # your API ID
-api_hash = '3b7788498c56da1a02e904ff8e92d494'  # your API Hash
-MONGO_URI = os.getenv("MONGO_URI")  
+API_ID = int(os.getenv("API_ID", "24916488"))
+API_HASH = os.getenv("API_HASH", "3b7788498c56da1a02e904ff8e92d494")
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # your bot token
+MONGO_URI = os.getenv("MONGO_URI")
 
-# === 📂 Create base image folder ===
-os.makedirs("downloaded_images", exist_ok=True)
+USER_SESSION = "user_session"
+BOT_SESSION = "bot_session"
+DOWNLOAD_DIR = "downloaded_images"
+TARGET_CHANNEL = "@Outis_ss1643"
+FORWARDED_FILE = "forwarded_messages.json"
+
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # === ⚡ MongoDB Setup ===
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client["yetal"]
 collection = db["yetalcollection"]
 
-# === 🗂️ Load channels from DB ===
 channels = [ch["username"] for ch in collection.find({})]
 if not channels:
     print("⚠️ No channels found in DB. Add some with your bot first!")
@@ -69,97 +74,162 @@ def extract_info(text):
         "channel_mention": channel_mention
     }
 
-# === 🛠️ Scraper Function ===
-def scrape(timeframe="24h"):
-    """
-    Scrapes posts from Telegram channels.
-    timeframe: '24h' or '7d'
-    """
-    results = {}  # Grouped by channel
+# === 📦 Scraper Function ===
+async def scrape_and_save(client, timeframe="24h"):
+    results = []  
+    seen_posts = set()  
 
-    now = datetime.utcnow()
-    if timeframe == "24h":
-        cutoff = now - timedelta(hours=24)
-    elif timeframe == "7d":
-        cutoff = now - timedelta(days=7)
-    else:
-        cutoff = None
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=24) if timeframe == "24h" else now - timedelta(days=7)
 
-    with TelegramClient('anon', api_id, api_hash) as client:
-        for channel in channels:
-            print(f"📡 Scraping channel: {channel}")
-            safe_channel = channel.replace("@", "")
-            channel_folder = os.path.join("downloaded_images", safe_channel)
-            os.makedirs(channel_folder, exist_ok=True)
+    for channel in channels:
+        print(f"📡 Scraping channel: {channel}")
+        safe_channel = channel.replace("@", "")
+        channel_folder = os.path.join(DOWNLOAD_DIR, safe_channel)
+        os.makedirs(channel_folder, exist_ok=True)
 
-            channel_posts = []
+        async for message in client.iter_messages(channel, limit=None):
+            if not message.text:
+                continue
 
-            # Iterate messages and stop when reaching cutoff
-            for message in client.iter_messages(channel, limit=None):  # unlimited, break manually
-                if not message.text:
-                    continue
+            if message.date < cutoff:
+                break
 
-                # Stop if older than cutoff
-                if cutoff and message.date.replace(tzinfo=None) < cutoff:
-                    break
+            if (channel, message.id) in seen_posts:
+                continue
+            seen_posts.add((channel, message.id))
 
-                info = extract_info(message.text)
-                
-                post_images = []
-                # Handle messages with media (including multiple photos)
-                if message.media:
-                    try:
-                        media_list = message.media if isinstance(message.media, list) else [message.media]
-                        for idx, media_item in enumerate(media_list):
-                            clean_title = re.sub(r'[^\w\-_. ]', '_', info['title'])[:30]
-                            safe_filename = f"{clean_title}_{message.id}_{idx}.jpg"
-                            path = client.download_media(
-                                media_item,
-                                file=os.path.join(channel_folder, safe_filename)
-                            )
-                            post_images.append(path.replace('\\', '/'))
-                    except Exception as e:
-                        print(f"❌ Error downloading image: {e}")
+            info = extract_info(message.text)
+            post_images = []
 
-                post_data = {
-                    "title": info["title"],
-                    "description": info["description"],
-                    "price": info["price"],
-                    "phone": info["phone"],
-                    "location": info["location"],
-                    "images": post_images if post_images else None,
-                    "date": message.date.strftime("%Y-%m-%d %H:%M:%S"),
-                    "channel": channel
-                }
+            if message.media:
+                try:
+                    clean_title = re.sub(r'[^\w\-_. ]', '_', info['title'])[:30]
+                    safe_filename = f"{clean_title}_{message.id}.jpg"
+                    path = await client.download_media(
+                        message.media,
+                        file=os.path.join(channel_folder, safe_filename)
+                    )
+                    if path:
+                        post_images.append(path.replace('\\', '/'))
+                except Exception as e:
+                    print(f"❌ Error downloading image: {e}")
 
-                if info["channel_mention"] and info["channel_mention"].lower() != channel.lower():
-                    post_data["channel"] = info["channel_mention"]
+            post_data = {
+                "title": info["title"],
+                "description": info["description"],
+                "price": info["price"],
+                "phone": info["phone"],
+                "images": post_images if post_images else None,
+                "location": info["location"],
+                "date": message.date.strftime("%Y-%m-%d %H:%M:%S"),
+                "channel": info["channel_mention"] if info["channel_mention"] else channel
+            }
 
-                channel_posts.append(post_data)
+            results.append(post_data)
 
-            # Sort posts newest first
-            channel_posts.sort(key=lambda x: x["date"], reverse=True)
-            if channel_posts:
-                results[channel] = channel_posts
+        # Cleanup old images only for 7-day scrape
+        if timeframe == "7d":
+            for file in os.listdir(channel_folder):
+                file_path = os.path.join(channel_folder, file)
+                if os.path.isfile(file_path):
+                    file_mtime = datetime.utcfromtimestamp(os.path.getmtime(file_path))
+                    if file_mtime < cutoff.replace(tzinfo=None):
+                        os.remove(file_path)
+                        print(f"🗑️ Deleted old image: {file_path}")
 
-            # Cleanup old images for 7-day scraping
-            if timeframe == "7d":
-                for file in os.listdir(channel_folder):
-                    file_path = os.path.join(channel_folder, file)
-                    if os.path.isfile(file_path):
-                        file_mtime = datetime.utcfromtimestamp(os.path.getmtime(file_path))
-                        if file_mtime < cutoff:
-                            os.remove(file_path)
+    # Ensure JSON only has posts newer than cutoff
+    results = [
+        post for post in results
+        if datetime.strptime(post["date"], "%Y-%m-%d %H:%M:%S") >= cutoff.replace(tzinfo=None)
+    ]
 
-    # Save JSON
     filename = f"scraped_{timeframe}.json"
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
-    print(f"\n✅ Done. Scraped {sum(len(v) for v in results.values())} posts ({timeframe}) from {len(results)} channels.")
-    print(f"📁 Data saved to {filename} and images downloaded to /downloaded_images/")
+    print(f"\n✅ Done. Scraped {len(results)} posts ({timeframe}) from {len(channels)} channels.")
+    print(f"📁 Data saved to {filename} and images downloaded to /{DOWNLOAD_DIR}/")
 
-# === 🚀 Run Scraper ===
+# === 📤 Forwarding Function with duplicate prevention & cleanup ===
+async def forward_messages(user, bot, days: int):
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=days)
+
+    # Load previously forwarded messages with timestamps
+    if os.path.exists(FORWARDED_FILE):
+        with open(FORWARDED_FILE, "r") as f:
+            forwarded_data = json.load(f)
+            forwarded_ids = {
+                int(msg_id): datetime.strptime(ts, "%Y-%m-%d %H:%M:%S") 
+                for msg_id, ts in forwarded_data.items()
+            }
+    else:
+        forwarded_ids = {}
+
+    # Remove forwarded IDs older than 7 days
+    forwarded_ids = {msg_id: ts for msg_id, ts in forwarded_ids.items() if ts >= cutoff.replace(tzinfo=None)}
+
+    messages_to_forward_by_channel = {channel: [] for channel in channels}
+
+    # Collect messages
+    for channel in channels:
+        async for message in user.iter_messages(channel, limit=None):
+            if message.date < cutoff:
+                break
+            if message.id not in forwarded_ids and (message.text or message.media):
+                messages_to_forward_by_channel[channel].append(message)
+
+    total_forwarded = 0
+    for channel, messages_list in messages_to_forward_by_channel.items():
+        if not messages_list:
+            continue
+
+        messages_list.reverse()
+        for i in range(0, len(messages_list), 100):
+            batch = messages_list[i:i+100]
+            await bot.forward_messages(
+                entity=TARGET_CHANNEL,
+                messages=[msg.id for msg in batch],
+                from_peer=channel
+            )
+            await asyncio.sleep(1)
+
+            for msg in batch:
+                forwarded_ids[msg.id] = msg.date.replace(tzinfo=None)
+                total_forwarded += 1
+
+    # Save updated forwarded IDs
+    with open(FORWARDED_FILE, "w") as f:
+        json.dump({str(k): v.strftime("%Y-%m-%d %H:%M:%S") for k, v in forwarded_ids.items()}, f)
+
+    if total_forwarded > 0:
+        print(f"\n✅ Done. Forwarded {total_forwarded} new posts ({days}d) to {TARGET_CHANNEL}.")
+    else:
+        print("\nℹ️ No new posts to forward. All messages already exist in the target channel.")
+
+# === ⚡ Main execution block ===
+async def main():
+    user = TelegramClient(USER_SESSION, API_ID, API_HASH)
+    await user.start()
+
+    bot = TelegramClient(BOT_SESSION, API_ID, API_HASH)
+    await bot.start(bot_token=BOT_TOKEN)
+
+    # 24h scrape → JSON
+    print("Starting 24-hour scrape to JSON...")
+    await scrape_and_save(user, timeframe="24h")
+
+    # 7d scrape → JSON
+    print("\nStarting 7-day scrape to JSON...")
+    await scrape_and_save(user, timeframe="7d")
+
+    # 7d forward → target channel
+    print("\nStarting 7-day forwarding to channel...")
+    await forward_messages(user, bot, days=7)
+
+    await user.disconnect()
+    await bot.disconnect()
+
 if __name__ == "__main__":
-    scrape("24h")  # JSON for last 24 hours
-    scrape("7d")   # JSON for last 7 days
+    asyncio.run(main())
