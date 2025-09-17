@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 from telethon import TelegramClient
 from dotenv import load_dotenv
+from telethon.errors import ChatForwardsRestrictedError, FloodWaitError, RPCError
 
 # === 🔐 Load environment ===
 load_dotenv()
@@ -188,17 +189,39 @@ async def forward_messages(user, bot, days: int):
         messages_list.reverse()
         for i in range(0, len(messages_list), 100):
             batch = messages_list[i:i+100]
-            await bot.forward_messages(
-                entity=TARGET_CHANNEL,
-                messages=[msg.id for msg in batch],
-                from_peer=channel
-            )
-            await asyncio.sleep(1)
+            try:
+                # Add timeout to avoid hanging forever
+                await asyncio.wait_for(
+                    bot.forward_messages(
+                        entity=TARGET_CHANNEL,
+                        messages=[msg.id for msg in batch],
+                        from_peer=channel
+                    ),
+                    timeout=20
+                )
+                await asyncio.sleep(1)
 
-            for msg in batch:
-                forwarded_ids[msg.id] = msg.date.replace(tzinfo=None)
-                total_forwarded += 1
+                for msg in batch:
+                    forwarded_ids[msg.id] = msg.date.replace(tzinfo=None)
+                    total_forwarded += 1
 
+            except ChatForwardsRestrictedError:
+                print(f"🚫 Forwarding restricted for channel {channel}, skipping...")
+                break
+            except FloodWaitError as e:
+                print(f"⏳ Flood wait error ({e.seconds}s). Waiting...")
+                await asyncio.sleep(e.seconds)
+                continue
+            except asyncio.TimeoutError:
+                print(f"⚠️ Forwarding timed out for {channel}, skipping batch...")
+                continue
+            except RPCError as e:
+                print(f"⚠️ RPC Error for {channel}: {e}")
+                continue
+            except Exception as e:
+                print(f"⚠️ Unexpected error forwarding from {channel}: {e}")
+                continue
+           
     # Save updated forwarded IDs
     with open(FORWARDED_FILE, "w") as f:
         json.dump({str(k): v.strftime("%Y-%m-%d %H:%M:%S") for k, v in forwarded_ids.items()}, f)
@@ -216,7 +239,7 @@ async def main():
     bot = TelegramClient(BOT_SESSION, API_ID, API_HASH)
     await bot.start(bot_token=BOT_TOKEN)
 
-    # 24h scrape → JSON
+# 24h scrape → JSON
     print("Starting 24-hour scrape to JSON...")
     await scrape_and_save(user, timeframe="24h")
 
