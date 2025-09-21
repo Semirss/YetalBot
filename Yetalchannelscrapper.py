@@ -75,7 +75,7 @@ def extract_info(text):
         "channel_mention": channel_mention
     }
 
-# === 📦 Scraper Function ===
+# === 📦 Scraper Function (fixed for multiple images) ===
 async def scrape_and_save(client, timeframe="24h"):
     results = []  
     seen_posts = set()  
@@ -103,18 +103,50 @@ async def scrape_and_save(client, timeframe="24h"):
             info = extract_info(message.text)
             post_images = []
 
-            if message.media:
-                try:
+            # === Handle single media and albums properly ===
+            try:
+                # If message is part of an album
+                if getattr(message, "grouped_id", None):
+                    async for msg in client.iter_messages(channel, limit=None, reverse=True):
+                        if getattr(msg, "grouped_id", None) == message.grouped_id:
+                            clean_title = re.sub(r'[^\w\-_. ]', '_', info['title'])[:30]
+                            ext = "jpg"
+                            if msg.photo:
+                                path = await client.download_media(
+                                    msg.photo,
+                                    file=os.path.join(channel_folder, f"{clean_title}_{msg.id}.jpg")
+                                )
+                            elif msg.document:
+                                ext = msg.file.name.split('.')[-1] if msg.file else "dat"
+                                path = await client.download_media(
+                                    msg.document,
+                                    file=os.path.join(channel_folder, f"{clean_title}_{msg.id}.{ext}")
+                                )
+                            else:
+                                continue
+                            if path:
+                                post_images.append(path.replace('\\', '/'))
+                else:
                     clean_title = re.sub(r'[^\w\-_. ]', '_', info['title'])[:30]
-                    safe_filename = f"{clean_title}_{message.id}.jpg"
-                    path = await client.download_media(
-                        message.media,
-                        file=os.path.join(channel_folder, safe_filename)
-                    )
+                    ext = "jpg"
+                    if message.photo:
+                        path = await client.download_media(
+                            message.photo,
+                            file=os.path.join(channel_folder, f"{clean_title}_{message.id}.jpg")
+                        )
+                    elif message.document:
+                        ext = message.file.name.split('.')[-1] if message.file else "dat"
+                        path = await client.download_media(
+                            message.document,
+                            file=os.path.join(channel_folder, f"{clean_title}_{message.id}.{ext}")
+                        )
+                    else:
+                        path = None
                     if path:
                         post_images.append(path.replace('\\', '/'))
-                except Exception as e:
-                    print(f"❌ Error downloading image: {e}")
+
+            except Exception as e:
+                print(f"❌ Error downloading image(s): {e}")
 
             post_data = {
                 "title": info["title"],
