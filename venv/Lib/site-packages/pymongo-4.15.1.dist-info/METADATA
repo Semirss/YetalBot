@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: pymongo
-Version: 4.15.0
+Version: 4.15.1
 Summary: PyMongo - the Official MongoDB Python driver
 Project-URL: Homepage, https://www.mongodb.org
 Project-URL: Documentation, https://www.mongodb.com/docs/languages/python/pymongo-driver/current/
