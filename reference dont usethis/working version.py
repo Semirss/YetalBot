@@ -181,94 +181,172 @@ async def scrape_and_save(client, timeframe="24h"):
     for idx, post in enumerate(results, start=1):
         post["id"] = idx
 
+ 
     # === Save to Parquet ===
     df = pd.DataFrame(results)
     filename_parquet = f"scraped_{timeframe}.parquet"
     df.to_parquet(filename_parquet, engine="pyarrow", index=False)
 
     print(f"\n✅ Done. Scraped {len(results)} posts ({timeframe}) from {len(channels)} channels.")
-    print(f"📁 Data saved to {filename_parquet}, images → /{DOWNLOAD_DIR}/")
+    print(f"📁 {filename_parquet}, images → /{DOWNLOAD_DIR}/")
 
-
-# === 📤 Forwarding Function with duplicate prevention & cleanup ===
+# === Fixed forwarding: preserves albums and correctly uses the `days` window ===
 async def forward_messages(user, bot, days: int):
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=days)
 
-    # Load previously forwarded messages with timestamps
+    # --- Load previously forwarded IDs (UTC-aware datetimes) ---
+    forwarded_ids = {}
     if os.path.exists(FORWARDED_FILE):
-        with open(FORWARDED_FILE, "r") as f:
+        with open(FORWARDED_FILE, "r", encoding="utf-8") as f:
             forwarded_data = json.load(f)
-            forwarded_ids = {
-                int(msg_id): datetime.strptime(ts, "%Y-%m-%d %H:%M:%S") 
-                for msg_id, ts in forwarded_data.items()
-            }
-    else:
-        forwarded_ids = {}
+            for key, ts in forwarded_data.items():
+                try:
+                    forwarded_ids[key] = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                except Exception:
+                    # ignore unparsable entries
+                    continue
 
-    # Remove forwarded IDs older than 7 days
-    forwarded_ids = {msg_id: ts for msg_id, ts in forwarded_ids.items() if ts >= cutoff.replace(tzinfo=None)}
-
-    messages_to_forward_by_channel = {channel: [] for channel in channels}
-
-    # Collect messages
-    for channel in channels:
-        async for message in user.iter_messages(channel, limit=None):
-            if message.date < cutoff:
-                break
-            if message.id not in forwarded_ids and (message.text or message.media):
-                messages_to_forward_by_channel[channel].append(message)
+    # Keep only recent forwarded entries (within window)
+    forwarded_ids = {k: v for k, v in forwarded_ids.items() if v >= cutoff}
 
     total_forwarded = 0
-    for channel, messages_list in messages_to_forward_by_channel.items():
-        if not messages_list:
+
+    for channel in channels:
+        # Collect all messages in the window for this channel (newest -> oldest)
+        messages = []
+        async for message in user.iter_messages(channel, limit=None):
+            # ensure message.date is timezone-aware
+            msg_date = message.date
+            if getattr(msg_date, "tzinfo", None) is None:
+                msg_date = msg_date.replace(tzinfo=timezone.utc)
+
+            if msg_date < cutoff:
+                break   # we've reached messages older than cutoff; stop iterating this channel
+
+            messages.append(message)
+
+        if not messages:
             continue
 
-        messages_list.reverse()
-        for i in range(0, len(messages_list), 100):
-            batch = messages_list[i:i+100]
-            try:
-                # Add timeout to avoid hanging forever
-                await asyncio.wait_for(
-                    bot.forward_messages(
+        # Process messages oldest -> newest so forwards appear natural
+        processed_groups = set()
+        for message in reversed(messages):
+            # skip empty messages
+            if not (getattr(message, "text", None) or getattr(message, "media", None)):
+                continue
+
+            grouped_id = getattr(message, "grouped_id", None)
+            if grouped_id:
+                if grouped_id in processed_groups:
+                    continue
+
+                # Collect album parts found inside the window
+                album_messages = [m for m in messages if getattr(m, "grouped_id", None) == grouped_id]
+
+                max_scan = 500
+                scanned = 0
+                try:
+                    # Start from the oldest album message we currently have
+                    oldest_in_buffer = album_messages[0] if album_messages else message
+                    async for old_msg in user.iter_messages(channel, offset_id=oldest_in_buffer.id, limit=None):
+                        scanned += 1
+                        if scanned > max_scan:
+                            break
+                        if getattr(old_msg, "grouped_id", None) == grouped_id:
+                            album_messages.insert(0, old_msg)  # prepend older part
+                        else:
+                            # stop scanning older messages when grouped_id no longer matches
+                            # (most albums are contiguous)
+                            break
+                except Exception:
+                    # If fetching older parts fails for any reason, proceed with what we have
+                    pass
+
+                # sort by id ascending to maintain original order
+                album_messages.sort(key=lambda x: x.id)
+
+                # If any message in this album was already forwarded, skip whole album
+                if any(f"{channel}:{m.id}" in forwarded_ids for m in album_messages):
+                    processed_groups.add(grouped_id)
+                    continue
+
+                # Forward album as a single post by sending the list of Message objects
+                try:
+                    await bot.forward_messages(
                         entity=TARGET_CHANNEL,
-                        messages=[msg.id for msg in batch],
+                        messages=album_messages,
                         from_peer=channel
-                    ),
-                    timeout=20
-                )
-                await asyncio.sleep(1)
+                    )
 
-                for msg in batch:
-                    forwarded_ids[msg.id] = msg.date.replace(tzinfo=None)
+                    for m in album_messages:
+                        key = f"{channel}:{m.id}"
+                        m_date = m.date
+                        if getattr(m_date, "tzinfo", None) is None:
+                            m_date = m_date.replace(tzinfo=timezone.utc)
+                        forwarded_ids[key] = m_date
+
+                    processed_groups.add(grouped_id)
+                    total_forwarded += len(album_messages)
+                    print(f"✅ Forwarded album ({len(album_messages)}) from {channel}")
+                    await asyncio.sleep(0.5)
+
+                except ChatForwardsRestrictedError:
+                    print(f"🚫 Forwarding restricted for {channel}, skipping channel...")
+                    break
+                except FloodWaitError as e:
+                    print(f"⚠️ Flood wait ({e.seconds}s) for {channel}, skipping this message...")
+                    continue
+                except RPCError as e:
+                    print(f"⚠️ RPC error for {channel}: {e}, skipping...")
+                    continue
+                except Exception as e:
+                    print(f"⚠️ Unexpected error for {channel}: {e}, skipping...")
+                    continue
+
+            else:
+                # Single non-album message
+                unique_key = f"{channel}:{message.id}"
+                if unique_key in forwarded_ids:
+                    continue
+
+                try:
+                    await bot.forward_messages(
+                        entity=TARGET_CHANNEL,
+                        messages=message,
+                        from_peer=channel
+                    )
+                    m_date = message.date
+                    if getattr(m_date, "tzinfo", None) is None:
+                        m_date = m_date.replace(tzinfo=timezone.utc)
+                    forwarded_ids[unique_key] = m_date
                     total_forwarded += 1
+                    print(f"✅ Forwarded single message from {channel}")
+                    await asyncio.sleep(0.5)
 
-            except ChatForwardsRestrictedError:
-                print(f"🚫 Forwarding restricted for channel {channel}, skipping...")
-                break
-            except FloodWaitError as e:
-                print(f"⏳ Flood wait error ({e.seconds}s). Waiting...")
-                await asyncio.sleep(e.seconds)
-                continue
-            except asyncio.TimeoutError:
-                print(f"⚠️ Forwarding timed out for {channel}, skipping batch...")
-                continue
-            except RPCError as e:
-                print(f"⚠️ RPC Error for {channel}: {e}")
-                continue
-            except Exception as e:
-                print(f"⚠️ Unexpected error forwarding from {channel}: {e}")
-                continue
-           
-     # Save updated forwarded IDs
-    with open(FORWARDED_FILE, "w") as f:
-        json.dump({str(k): v.strftime("%Y-%m-%d %H:%M:%S") for k, v in forwarded_ids.items()}, f)
+                except ChatForwardsRestrictedError:
+                    print(f"🚫 Forwarding restricted for {channel}, skipping channel...")
+                    break
+                except FloodWaitError as e:
+                    print(f"⚠️ Flood wait ({e.seconds}s) for {channel}, skipping this message...")
+                    continue
+                except RPCError as e:
+                    print(f"⚠️ RPC error for {channel}: {e}, skipping...")
+                    continue
+                except Exception as e:
+                    print(f"⚠️ Unexpected error for {channel}: {e}, skipping...")
+                    continue
 
-    if total_forwarded > 0:
-        print(f"\n✅ Done. Forwarded {total_forwarded} new posts ({days}d) to {TARGET_CHANNEL}.")
-    else:
-        print("\nℹ️ No new posts to forward. All messages already exist in the target channel.")
+    # Persist forwarded IDs (store as UTC strings)
+    with open(FORWARDED_FILE, "w", encoding="utf-8") as f:
+        json.dump(
+            {k: v.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") for k, v in forwarded_ids.items()},
+            f,
+            indent=2,
+            ensure_ascii=False
+        )
 
+    print(f"\n✅ Done. Forwarded {total_forwarded} new posts ({days}d) → {TARGET_CHANNEL}")
 
 # === ⚡ Main execution block ===
 async def main():
@@ -278,13 +356,13 @@ async def main():
     bot = TelegramClient(BOT_SESSION, API_ID, API_HASH)
     await bot.start(bot_token=BOT_TOKEN)
 
-    # 24h scrape → parquet
-    print("Starting 24-hour scrape to parquet...")
-    await scrape_and_save(user, timeframe="24h")
+    # # 24h scrape → JSON
+    # print("Starting 24-hour scrape to JSON...")
+    # await scrape_and_save(user, timeframe="24h")
 
-    # 7d scrape → parquet
-    print("\nStarting 7-day scrape to parquet...")
-    await scrape_and_save(user, timeframe="7d")
+    # # 7d scrape → JSON
+    # print("\nStarting 7-day scrape to JSON...")
+    # await scrape_and_save(user, timeframe="7d")
 
     # 7d forward → target channel
     print("\nStarting 7-day forwarding to channel...")

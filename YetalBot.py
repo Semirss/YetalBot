@@ -1,12 +1,13 @@
 import os
 import asyncio
+import json
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram.error import BadRequest
 from telethon import TelegramClient
-from telethon.errors import ChannelInvalidError, UsernameInvalidError, UsernameNotOccupiedError
+from telethon.errors import ChannelInvalidError, UsernameInvalidError, UsernameNotOccupiedError, FloodWaitError, RPCError, ChatForwardsRestrictedError
 import threading
 import glob
 
@@ -19,29 +20,47 @@ API_HASH = "3b7788498c56da1a02e904ff8e92d494"
 FORWARD_CHANNEL = os.getenv("FORWARD_CHANNEL")  # target channel username
 ADMIN_CODE = os.getenv("ADMIN_CODE")  # secret code for access
 
+# === 📁 Files ===
+FORWARDED_FILE = "forwarded_messages.json"
+USER_SESSION_FILE = "user_session.session"  # Main user session file
+
 # === ⚡ MongoDB Setup ===
 client = MongoClient(MONGO_URI)
 db = client["yetal"]
 channels_collection = db["yetalcollection"]
 auth_collection = db["authorized_users"]  # store authorized user IDs
 
+# ======================
+# Wrapper for command authorization
+# ======================
+def authorized(func):
+    def wrapper(update, context, *args, **kwargs):
+        user_id = update.effective_user.id
+        if not auth_collection.find_one({"user_id": user_id}):
+            update.message.reply_text(
+                "❌ You must enter a valid code first. Use /start to begin."
+            )
+            return
+        return func(update, context, *args, **kwargs)
+
+    return wrapper
+
 def cleanup_telethon_sessions(channel_username=None):
-    """Clean up Telethon session files for a specific channel or all temporary sessions"""
+    """Clean up Telethon session files for specific channels (not the main user session)"""
     try:
         if channel_username:
-            # Clean up specific session files
+            # Clean up specific channel session files
             session_pattern = f"session_{channel_username}.*"
             files = glob.glob(session_pattern)
             for file in files:
                 os.remove(file)
                 print(f"🧹 Deleted session file: {file}")
         else:
-            # Clean up all temporary session files (optional)
-            # This can be used for general cleanup if needed
+            # Clean up all temporary session files except the main user session
             session_files = glob.glob("session_*.*")
             for file in session_files:
-                # Don't delete the main user session
-                if not file.startswith("session_"):
+                # Don't delete the main user session file
+                if file == USER_SESSION_FILE or file.startswith(USER_SESSION_FILE.replace('.session', '')):
                     continue
                 os.remove(file)
                 print(f"🧹 Deleted session file: {file}")
@@ -49,17 +68,44 @@ def cleanup_telethon_sessions(channel_username=None):
         print(f"❌ Error cleaning up session files: {e}")
 
 # ======================
-# Forward last 24h posts from a given channel
+# Get or create main Telethon client with user session
+# ======================
+async def get_telethon_client():
+    """Get the main Telethon client using the user session file"""
+    try:
+        client = TelegramClient(USER_SESSION_FILE, API_ID, API_HASH)
+        
+        # Connect the client first
+        await client.connect()
+        
+        # Check if authorized
+        if not await client.is_user_authorized():
+            print("🔐 User not authorized. Please check the session file or re-authenticate.")
+            await client.disconnect()
+            return None
+            
+        return client
+    except Exception as e:
+        print(f"❌ Error creating Telethon client: {e}")
+        # Ensure client is disconnected if there's an error
+        try:
+            await client.disconnect()
+        except:
+            pass
+        return None
+
+# ======================
+# Forward last 24h posts from a given channel with duplicate prevention
 # ======================
 async def forward_last_24h_async(channel_username: str):
-    """Async function to forward messages using a dedicated Telethon client"""
+    """Async function to forward messages using the main Telethon client"""
     telethon_client = None
-    session_name = f"session_{channel_username}"
     
     try:
-        # Create a new Telethon client for this operation
-        telethon_client = TelegramClient(session_name, API_ID, API_HASH)
-        await telethon_client.start()
+        # Use the main user session client
+        telethon_client = await get_telethon_client()
+        if not telethon_client:
+            return False, "❌ Failed to initialize Telethon client. Please check session."
         
         print(f"🔍 Checking if channel {channel_username} exists...")
         
@@ -69,20 +115,38 @@ async def forward_last_24h_async(channel_username: str):
             print(f"✅ Channel found: {entity.title}")
         except (ChannelInvalidError, UsernameInvalidError, UsernameNotOccupiedError) as e:
             print(f"❌ Channel error: {e}")
+            await telethon_client.disconnect()
             return False, f"❌ Channel {channel_username} is invalid or doesn't exist."
         except Exception as e:
             print(f"❌ Unexpected error getting entity: {e}")
+            await telethon_client.disconnect()
             return False, f"❌ Error accessing channel: {str(e)}"
 
         now = datetime.now(timezone.utc)
         cutoff = now - timedelta(hours=24)
         print(f"⏰ Cutoff time: {cutoff}")
 
+        # Load previously forwarded messages with timestamps
+        if os.path.exists(FORWARDED_FILE):
+            with open(FORWARDED_FILE, "r") as f:
+                forwarded_data = json.load(f)
+                forwarded_ids = {
+                    int(msg_id): datetime.strptime(ts, "%Y-%m-%d %H:%M:%S") 
+                    for msg_id, ts in forwarded_data.items()
+                }
+        else:
+            forwarded_ids = {}
+
+        # Remove forwarded IDs older than 7 days
+        week_cutoff = now - timedelta(days=7)
+        forwarded_ids = {msg_id: ts for msg_id, ts in forwarded_ids.items() 
+                        if datetime.strptime(forwarded_data[str(msg_id)], "%Y-%m-%d %H:%M:%S") >= week_cutoff.replace(tzinfo=None)}
+
         messages_to_forward = []
         message_count = 0
         
         print(f"📨 Fetching messages from {channel_username}...")
-        async for message in telethon_client.iter_messages(channel_username, limit=100):
+        async for message in telethon_client.iter_messages(channel_username, limit=200):
             message_count += 1
             if message_count % 10 == 0:
                 print(f"📊 Processed {message_count} messages...")
@@ -90,45 +154,84 @@ async def forward_last_24h_async(channel_username: str):
             if message.date < cutoff:
                 print(f"⏹️ Reached cutoff time at message {message_count}")
                 break
-            if message.text or message.media:
+                
+            # Check if message is already forwarded and has content
+            if message.id not in forwarded_ids and (message.text or message.media):
                 messages_to_forward.append(message)
-                print(f"✅ Added message from {message.date}")
+                print(f"✅ Added message {message.id} from {message.date}")
 
-        print(f"📋 Found {len(messages_to_forward)} messages to forward")
+        print(f"📋 Found {len(messages_to_forward)} new messages to forward")
 
-        if messages_to_forward:
-            messages_to_forward.reverse()
-            print(f"➡️ Forwarding {len(messages_to_forward)} messages from {channel_username}...")
-            
-            success_count = 0
-            for i, message in enumerate(messages_to_forward):
-                try:
-                    await telethon_client.forward_messages(
+        if not messages_to_forward:
+            await telethon_client.disconnect()
+            return False, f"📭 No new posts found in the last 24h from {channel_username}."
+
+        # Reverse to forward in chronological order
+        messages_to_forward.reverse()
+        total_forwarded = 0
+        
+        print(f"➡️ Forwarding {len(messages_to_forward)} messages from {channel_username}...")
+        
+        # Forward in batches of 10 to avoid rate limits
+        for i in range(0, len(messages_to_forward), 10):
+            batch = messages_to_forward[i:i+10]
+            try:
+                # Add timeout to avoid hanging forever
+                await asyncio.wait_for(
+                    telethon_client.forward_messages(
                         entity=FORWARD_CHANNEL,
-                        messages=message.id,
-                        from_peer=channel_username,
-                    )
-                    success_count += 1
-                    print(f"✅ Forwarded message {i+1}/{len(messages_to_forward)}")
-                    await asyncio.sleep(0.5)
-                    
-                except Exception as e:
-                    print(f"❌ Error forwarding message {i+1}: {e}")
+                        messages=[msg.id for msg in batch],
+                        from_peer=channel_username
+                    ),
+                    timeout=30
+                )
+                
+                # Update forwarded IDs
+                for msg in batch:
+                    forwarded_ids[msg.id] = msg.date.replace(tzinfo=None)
+                    total_forwarded += 1
+                
+                print(f"✅ Forwarded batch {i//10 + 1}/{(len(messages_to_forward)-1)//10 + 1} ({len(batch)} messages)")
+                await asyncio.sleep(1)  # Small delay between batches
+                
+            except ChatForwardsRestrictedError:
+                print(f"🚫 Forwarding restricted for channel {channel_username}, skipping...")
+                break
+            except FloodWaitError as e:
+                print(f"⏳ Flood wait error ({e.seconds}s). Waiting...")
+                await asyncio.sleep(e.seconds)
+                continue
+            except asyncio.TimeoutError:
+                print(f"⚠️ Forwarding timed out for {channel_username}, skipping batch...")
+                continue
+            except RPCError as e:
+                print(f"⚠️ RPC Error for {channel_username}: {e}")
+                continue
+            except Exception as e:
+                print(f"⚠️ Unexpected error forwarding from {channel_username}: {e}")
+                continue
 
-            return True, f"✅ Successfully forwarded {success_count}/{len(messages_to_forward)} posts from {channel_username}."
+        # Save updated forwarded IDs
+        with open(FORWARDED_FILE, "w") as f:
+            json.dump({str(k): v.strftime("%Y-%m-%d %H:%M:%S") for k, v in forwarded_ids.items()}, f)
+
+        # Disconnect the client
+        await telethon_client.disconnect()
+
+        if total_forwarded > 0:
+            return True, f"✅ Successfully forwarded {total_forwarded} new posts from {channel_username}."
         else:
-            return False, f"📭 No posts found in the last 24h from {channel_username}."
+            return False, f"📭 No new posts to forward from {channel_username}."
 
     except Exception as e:
         print(f"❌ Critical error in forward_last_24h: {e}")
+        # Ensure client is disconnected even if there's an error
+        try:
+            if telethon_client:
+                await telethon_client.disconnect()
+        except:
+            pass
         return False, f"❌ Critical error: {str(e)}"
-    finally:
-        if telethon_client:
-            await telethon_client.disconnect()
-            print("✅ Telethon client disconnected")
-            
-        # Clean up session files after operation
-        cleanup_telethon_sessions(channel_username)
 
 def forward_last_24h_sync(channel_username: str):
     """Synchronous wrapper for the async forwarding function"""
@@ -145,13 +248,110 @@ def forward_last_24h_sync(channel_username: str):
         return False, f"❌ Error: {str(e)}"
 
 # ======================
+# Session management commands
+# ======================
+@authorized
+def setup_session(update, context):
+    """Command to set up the user session (run this once manually)"""
+    def run_session_setup():
+        try:
+            async def setup_async():
+                client = None
+                try:
+                    client = TelegramClient(USER_SESSION_FILE, API_ID, API_HASH)
+                    await client.start()
+                    
+                    # This will prompt for phone number and code on first run
+                    me = await client.get_me()
+                    result = f"✅ Session setup successful!\nLogged in as: {me.first_name} (@{me.username})"
+                    
+                    return result
+                except Exception as e:
+                    return f"❌ Session setup failed: {e}"
+                finally:
+                    if client:
+                        await client.disconnect()
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(setup_async())
+            loop.close()
+            
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=result
+            )
+            
+        except Exception as e:
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"❌ Session setup error: {e}"
+            )
+    
+    update.message.reply_text("🔐 Starting session setup... This may require phone number verification.")
+    threading.Thread(target=run_session_setup, daemon=True).start()
+
+@authorized
+def check_session(update, context):
+    """Check if the user session is valid"""
+    def run_check():
+        try:
+            async def check_async():
+                client = None
+                try:
+                    client = TelegramClient(USER_SESSION_FILE, API_ID, API_HASH)
+                    await client.connect()
+                    
+                    if not await client.is_user_authorized():
+                        return "❌ Session not authorized. Please run /setup_session first."
+                    
+                    me = await client.get_me()
+                    result = f"✅ Session is valid!\nLogged in as: {me.first_name} (@{me.username})"
+                    
+                    return result
+                except Exception as e:
+                    return f"❌ Session check failed: {e}"
+                finally:
+                    # Always disconnect
+                    if client:
+                        await client.disconnect()
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(check_async())
+            loop.close()
+            
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=result
+            )
+            
+        except Exception as e:
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"❌ Session check error: {e}"
+            )
+    
+    threading.Thread(target=run_check, daemon=True).start()
+
+# ======================
 # /start command
 # ======================
 def start(update, context):
     user_id = update.effective_user.id
     if auth_collection.find_one({"user_id": user_id}):
         update.message.reply_text(
-            "✅ You are already authorized!\nYou can now use the bot commands."
+            "✅ You are already authorized!\n\n"
+            "Available commands:\n"
+            "/addchannel @ChannelUsername\n"
+            "/listchannels\n"
+            "/checkchannel @ChannelUsername\n"
+            "/deletechannel @ChannelUsername\n"
+            "/setup_session - Set up Telegram session (first time)\n"
+            "/check_session - Check session status\n"
+            "/test - Test connection\n"
+            "/cleanup - Cleanup sessions\n"
+            "/clearhistory - Clear forwarded history"
         )
     else:
         update.message.reply_text(
@@ -174,24 +374,12 @@ def code(update, context):
     entered_code = context.args[0].strip()
     if entered_code == ADMIN_CODE:
         auth_collection.insert_one({"user_id": user_id})
-        update.message.reply_text("✅ Code accepted! You can now use the bot commands.")
+        update.message.reply_text(
+            "✅ Code accepted! You can now use the bot commands.\n\n"
+            "⚠️ Important: Run /setup_session first to set up your Telegram session."
+        )
     else:
         update.message.reply_text("❌ Invalid code. Access denied.")
-
-# ======================
-# Wrapper for command authorization
-# ======================
-def authorized(func):
-    def wrapper(update, context, *args, **kwargs):
-        user_id = update.effective_user.id
-        if not auth_collection.find_one({"user_id": user_id}):
-            update.message.reply_text(
-                "❌ You must enter a valid code first. Use /start to begin."
-            )
-            return
-        return func(update, context, *args, **kwargs)
-
-    return wrapper
 
 # ======================
 # Bot commands
@@ -332,7 +520,11 @@ def unknown_command(update, context):
         "/addchannel @ChannelUsername\n"
         "/listchannels\n"
         "/checkchannel @ChannelUsername\n"
-        "/deletechannel @ChannelUsername"
+        "/deletechannel @ChannelUsername\n"
+        "/setup_session - Set up Telegram session\n"
+        "/check_session - Check session status\n"
+        "/test - Test connection\n"
+        
     )
 
 # ======================
@@ -343,25 +535,30 @@ def test_connection(update, context):
     """Test if Telethon client is working"""
     def run_test():
         try:
-            # Test with a fresh client instance
             async def test_async():
+                client = None
                 try:
-                    telethon_client = TelegramClient("test_session", API_ID, API_HASH)
-                    await telethon_client.start()
+                    client = TelegramClient(USER_SESSION_FILE, API_ID, API_HASH)
+                    await client.connect()
                     
-                    me = await telethon_client.get_me()
+                    if not await client.is_user_authorized():
+                        return "❌ Session not authorized. Please run /setup_session first."
+                    
+                    me = await client.get_me()
                     result = f"✅ Telethon connected as: {me.first_name} (@{me.username})"
                     
                     try:
-                        target = await telethon_client.get_entity(FORWARD_CHANNEL)
+                        target = await client.get_entity(FORWARD_CHANNEL)
                         result += f"\n✅ Target channel accessible: {target.title}"
                     except Exception as e:
                         result += f"\n❌ Cannot access target channel {FORWARD_CHANNEL}: {e}"
                     
-                    await telethon_client.disconnect()
                     return result
                 except Exception as e:
                     return f"❌ Telethon connection error: {e}"
+                finally:
+                    if client:
+                        await client.disconnect()
             
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -387,12 +584,27 @@ def test_connection(update, context):
 # ======================
 @authorized
 def cleanup_sessions(update, context):
-    """Clean up all temporary Telethon session files"""
+    """Clean up all temporary Telethon session files (except main user session)"""
     try:
         cleanup_telethon_sessions()
         update.message.reply_text("✅ All temporary session files have been cleaned up.")
     except Exception as e:
         update.message.reply_text(f"❌ Error cleaning up sessions: {e}")
+
+# ======================
+# Clear forwarded messages history
+# ======================
+@authorized
+def clear_forwarded_history(update, context):
+    """Clear the forwarded messages history file"""
+    try:
+        if os.path.exists(FORWARDED_FILE):
+            os.remove(FORWARDED_FILE)
+            update.message.reply_text("✅ Forwarded messages history cleared.")
+        else:
+            update.message.reply_text("ℹ️ No forwarded messages history found.")
+    except Exception as e:
+        update.message.reply_text(f"❌ Error clearing history: {e}")
 
 # ======================
 # Main
@@ -407,11 +619,19 @@ def main():
     dp.add_handler(CommandHandler("listchannels", list_channels))
     dp.add_handler(CommandHandler("checkchannel", check_channel))
     dp.add_handler(CommandHandler("deletechannel", delete_channel))
+    dp.add_handler(CommandHandler("setup_session", setup_session))
+    dp.add_handler(CommandHandler("check_session", check_session))
     dp.add_handler(CommandHandler("test", test_connection))
-    dp.add_handler(CommandHandler("cleanup", cleanup_sessions))
+   
     dp.add_handler(MessageHandler(Filters.command, unknown_command))
 
     print("🤖 Bot is running...")
+    
+    # Check if session file exists on startup
+    if os.path.exists(USER_SESSION_FILE):
+        print("✅ User session file found.")
+    else:
+        print("⚠️ User session file not found. Run /setup_session to create one.")
     
     try:
         updater.start_polling()
