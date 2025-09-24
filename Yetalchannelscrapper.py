@@ -8,6 +8,7 @@ from telethon import TelegramClient
 from dotenv import load_dotenv
 import pandas as pd
 from telethon.errors import ChatForwardsRestrictedError, FloodWaitError, RPCError
+
 # === 🔐 Load environment ===
 load_dotenv()
 API_ID = int(os.getenv("API_ID", "24916488"))
@@ -24,6 +25,12 @@ FORWARDED_FILE = "forwarded_messages.json"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # === ⚡ MongoDB Setup ===
+mongo_client = MongoClient(
+MONGO_URI, 
+serverSelectionTimeoutMS=20000,  # 10 seconds timeout
+connectTimeoutMS=50000,
+socketTimeoutMS=50000
+ )
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client["yetal"]
 collection = db["yetalcollection"]
@@ -75,7 +82,7 @@ def extract_info(text):
         "channel_mention": channel_mention
     }
 
-# === 📦 Scraper Function (fixed for multiple images) ===
+# === 📦 Scraper Function (FIXED VERSION) ===
 async def scrape_and_save(client, timeframe="24h"):
     results = []  
     seen_posts = set()  
@@ -85,93 +92,110 @@ async def scrape_and_save(client, timeframe="24h"):
 
     for channel in channels:
         print(f"📡 Scraping channel: {channel}")
-        safe_channel = channel.replace("@", "")
-        channel_folder = os.path.join(DOWNLOAD_DIR, safe_channel)
-        os.makedirs(channel_folder, exist_ok=True)
-
-        async for message in client.iter_messages(channel, limit=None):
-            if not message.text:
-                continue
-
-            if message.date < cutoff:
-                break
-
-            if (channel, message.id) in seen_posts:
-                continue
-            seen_posts.add((channel, message.id))
-
-            info = extract_info(message.text)
-            post_images = []
-
-            # === Handle single media and albums properly ===
+        
+        try:
+            # ✅ FIX: Resolve channel entity first
             try:
-                # If message is part of an album
-                if getattr(message, "grouped_id", None):
-                    async for msg in client.iter_messages(channel, limit=None, reverse=True):
-                        if getattr(msg, "grouped_id", None) == message.grouped_id:
-                            clean_title = re.sub(r'[^\w\-_. ]', '_', info['title'])[:30]
-                            ext = "jpg"
-                            if msg.photo:
-                                path = await client.download_media(
-                                    msg.photo,
-                                    file=os.path.join(channel_folder, f"{clean_title}_{msg.id}.jpg")
-                                )
-                            elif msg.document:
-                                ext = msg.file.name.split('.')[-1] if msg.file else "dat"
-                                path = await client.download_media(
-                                    msg.document,
-                                    file=os.path.join(channel_folder, f"{clean_title}_{msg.id}.{ext}")
-                                )
-                            else:
-                                continue
-                            if path:
-                                post_images.append(path.replace('\\', '/'))
-                else:
-                    clean_title = re.sub(r'[^\w\-_. ]', '_', info['title'])[:30]
-                    ext = "jpg"
-                    if message.photo:
-                        path = await client.download_media(
-                            message.photo,
-                            file=os.path.join(channel_folder, f"{clean_title}_{message.id}.jpg")
-                        )
-                    elif message.document:
-                        ext = message.file.name.split('.')[-1] if message.file else "dat"
-                        path = await client.download_media(
-                            message.document,
-                            file=os.path.join(channel_folder, f"{clean_title}_{message.id}.{ext}")
-                        )
-                    else:
-                        path = None
-                    if path:
-                        post_images.append(path.replace('\\', '/'))
-
+                channel_entity = await client.get_entity(channel)
+                print(f"✅ Channel resolved: {channel_entity.title}")
+            except ValueError as e:
+                print(f"❌ Could not resolve channel {channel}: {e}")
+                continue
             except Exception as e:
-                print(f"❌ Error downloading image(s): {e}")
+                print(f"❌ Error accessing channel {channel}: {e}")
+                continue
+            
+            safe_channel = channel.replace("@", "")
+            channel_folder = os.path.join(DOWNLOAD_DIR, safe_channel)
+            os.makedirs(channel_folder, exist_ok=True)
 
-            post_data = {
-    "title": info["title"],
-    "description": info["description"],
-    "price": info["price"],
-    "phone": info["phone"],
-    "images": post_images if post_images else None,
-    "location": info["location"],
-    "date": message.date.strftime("%Y-%m-%d %H:%M:%S"),
-    "channel": info["channel_mention"] if info["channel_mention"] else channel,
-    "post_link": f"https://t.me/{channel.replace('@','')}/{message.id}"
-}
+            # ✅ FIX: Use the resolved entity instead of the username string
+            async for message in client.iter_messages(channel_entity, limit=None):
+                if not message.text:
+                    continue
 
+                if message.date < cutoff:
+                    break
 
-            results.append(post_data)
+                if (channel, message.id) in seen_posts:
+                    continue
+                seen_posts.add((channel, message.id))
 
-        # Cleanup old images only for 7-day scrape
-        if timeframe == "7d":
-            for file in os.listdir(channel_folder):
-                file_path = os.path.join(channel_folder, file)
-                if os.path.isfile(file_path):
-                    file_mtime = datetime.utcfromtimestamp(os.path.getmtime(file_path))
-                    if file_mtime < cutoff.replace(tzinfo=None):
-                        os.remove(file_path)
-                        print(f"🗑️ Deleted old image: {file_path}")
+                info = extract_info(message.text)
+                post_images = []
+
+                # === Handle single media and albums properly ===
+                try:
+                    # If message is part of an album
+                    if getattr(message, "grouped_id", None):
+                        async for msg in client.iter_messages(channel_entity, limit=None, reverse=True):
+                            if getattr(msg, "grouped_id", None) == message.grouped_id:
+                                clean_title = re.sub(r'[^\w\-_. ]', '_', info['title'])[:30]
+                                ext = "jpg"
+                                if msg.photo:
+                                    path = await client.download_media(
+                                        msg.photo,
+                                        file=os.path.join(channel_folder, f"{clean_title}_{msg.id}.jpg")
+                                    )
+                                elif msg.document:
+                                    ext = msg.file.name.split('.')[-1] if msg.file else "dat"
+                                    path = await client.download_media(
+                                        msg.document,
+                                        file=os.path.join(channel_folder, f"{clean_title}_{msg.id}.{ext}")
+                                    )
+                                else:
+                                    continue
+                                if path:
+                                    post_images.append(path.replace('\\', '/'))
+                    else:
+                        clean_title = re.sub(r'[^\w\-_. ]', '_', info['title'])[:30]
+                        ext = "jpg"
+                        if message.photo:
+                            path = await client.download_media(
+                                message.photo,
+                                file=os.path.join(channel_folder, f"{clean_title}_{message.id}.jpg")
+                            )
+                        elif message.document:
+                            ext = message.file.name.split('.')[-1] if message.file else "dat"
+                            path = await client.download_media(
+                                message.document,
+                                file=os.path.join(channel_folder, f"{clean_title}_{message.id}.{ext}")
+                            )
+                        else:
+                            path = None
+                        if path:
+                            post_images.append(path.replace('\\', '/'))
+
+                except Exception as e:
+                    print(f"❌ Error downloading image(s): {e}")
+
+                post_data = {
+                    "title": info["title"],
+                    "description": info["description"],
+                    "price": info["price"],
+                    "phone": info["phone"],
+                    "images": post_images if post_images else None,
+                    "location": info["location"],
+                    "date": message.date.strftime("%Y-%m-%d %H:%M:%S"),
+                    "channel": info["channel_mention"] if info["channel_mention"] else channel,
+                    "post_link": f"https://t.me/{channel.replace('@','')}/{message.id}"
+                }
+
+                results.append(post_data)
+
+            # Cleanup old images only for 7-day scrape
+            if timeframe == "7d":
+                for file in os.listdir(channel_folder):
+                    file_path = os.path.join(channel_folder, file)
+                    if os.path.isfile(file_path):
+                        file_mtime = datetime.utcfromtimestamp(os.path.getmtime(file_path))
+                        if file_mtime < cutoff.replace(tzinfo=None):
+                            os.remove(file_path)
+                            print(f"🗑️ Deleted old image: {file_path}")
+
+        except Exception as e:
+            print(f"❌ Error processing channel {channel}: {e}")
+            continue
 
     # Keep only posts newer than cutoff
     results = [
@@ -270,8 +294,6 @@ async def forward_messages(user, bot, days: int):
         print(f"\n✅ Done. Forwarded {total_forwarded} new posts ({days}d) to {TARGET_CHANNEL}.")
     else:
         print("\nℹ️ No new posts to forward. All messages already exist in the target channel.")
-
-
 # === ⚡ Main execution block ===
 async def main():
     user = TelegramClient(USER_SESSION, API_ID, API_HASH)
@@ -280,8 +302,17 @@ async def main():
     bot = TelegramClient(BOT_SESSION, API_ID, API_HASH)
     await bot.start(bot_token=BOT_TOKEN)
 
+    # Test channel access first
+    print("🔍 Testing channel access...")
+    for channel in channels:
+        try:
+            entity = await user.get_entity(channel)
+            print(f"✅ {channel}: {entity.title}")
+        except Exception as e:
+            print(f"❌ {channel}: {e}")
+
     # 24h scrape → parquet
-    print("Starting 24-hour scrape to parquet...")
+    print("\nStarting 24-hour scrape to parquet...")
     await scrape_and_save(user, timeframe="24h")
 
     # 7d scrape → parquet
