@@ -149,15 +149,17 @@ async def scrape_and_save(client, timeframe="24h"):
                 print(f"❌ Error downloading image(s): {e}")
 
             post_data = {
-                "title": info["title"],
-                "description": info["description"],
-                "price": info["price"],
-                "phone": info["phone"],
-                "images": post_images if post_images else None,
-                "location": info["location"],
-                "date": message.date.strftime("%Y-%m-%d %H:%M:%S"),
-                "channel": info["channel_mention"] if info["channel_mention"] else channel
-            }
+    "title": info["title"],
+    "description": info["description"],
+    "price": info["price"],
+    "phone": info["phone"],
+    "images": post_images if post_images else None,
+    "location": info["location"],
+    "date": message.date.strftime("%Y-%m-%d %H:%M:%S"),
+    "channel": info["channel_mention"] if info["channel_mention"] else channel,
+    "post_link": f"https://t.me/{channel.replace('@','')}/{message.id}"
+}
+
 
             results.append(post_data)
 
