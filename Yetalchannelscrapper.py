@@ -8,7 +8,6 @@ from telethon import TelegramClient
 from dotenv import load_dotenv
 import pandas as pd
 from telethon.errors import ChatForwardsRestrictedError, FloodWaitError, RPCError
-
 # === 🔐 Load environment ===
 load_dotenv()
 API_ID = int(os.getenv("API_ID", "24916488"))
@@ -27,7 +26,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 # === ⚡ MongoDB Setup ===
 mongo_client = MongoClient(
 MONGO_URI, 
-serverSelectionTimeoutMS=20000,  # 10 seconds timeout
+serverSelectionTimeoutMS=30000, 
 connectTimeoutMS=50000,
 socketTimeoutMS=50000
  )
@@ -44,7 +43,7 @@ if not channels:
 def clean_text(text):
     return ' '.join(text.replace('\xa0', ' ').split())
 
-def extract_info(text):
+def extract_info(text, message_id):
     text = clean_text(text)
     
     title_match = re.split(r'\n|💸|☘️☘️PRICE|Price\s*:|💵', text)[0].strip()
@@ -79,37 +78,35 @@ def extract_info(text):
         "price": price,
         "phone": phone,
         "location": location,
-        "channel_mention": channel_mention
+        "channel_mention": channel_mention,
+        "product_ref": str(message_id) 
     }
-
-# === 📦 Scraper Function (FIXED VERSION) ===
+# === 📦 Scraper Function (UPDATED VERSION) ===
 async def scrape_and_save(client, timeframe="24h"):
     results = []  
     seen_posts = set()  
 
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=24) if timeframe == "24h" else now - timedelta(days=7)
-
+    
+    # ✅ Resolve target channel (forwarded copies live here)
+    try:
+        target_entity = await client.get_entity(TARGET_CHANNEL)
+        print(f"✅ Target channel resolved: {target_entity.title}")
+    except Exception as e:
+        print(f"❌ Could not resolve target channel {TARGET_CHANNEL}: {e}")
+        return
+    
+    # ✅ FIRST: Collect all message texts from source channels to search for in target channel
+    source_messages = []
+    
     for channel in channels:
-        print(f"📡 Scraping channel: {channel}")
+        print(f"📡 Scanning channel: {channel}")
         
         try:
-            # ✅ FIX: Resolve channel entity first
-            try:
-                channel_entity = await client.get_entity(channel)
-                print(f"✅ Channel resolved: {channel_entity.title}")
-            except ValueError as e:
-                print(f"❌ Could not resolve channel {channel}: {e}")
-                continue
-            except Exception as e:
-                print(f"❌ Error accessing channel {channel}: {e}")
-                continue
+            channel_entity = await client.get_entity(channel)
+            print(f"✅ Channel resolved: {channel_entity.title}")
             
-            safe_channel = channel.replace("@", "")
-            channel_folder = os.path.join(DOWNLOAD_DIR, safe_channel)
-            os.makedirs(channel_folder, exist_ok=True)
-
-            # ✅ FIX: Use the resolved entity instead of the username string
             async for message in client.iter_messages(channel_entity, limit=None):
                 if not message.text:
                     continue
@@ -117,85 +114,71 @@ async def scrape_and_save(client, timeframe="24h"):
                 if message.date < cutoff:
                     break
 
-                if (channel, message.id) in seen_posts:
-                    continue
-                seen_posts.add((channel, message.id))
-
-                info = extract_info(message.text)
-                post_images = []
-
-                # === Handle single media and albums properly ===
-                try:
-                    # If message is part of an album
-                    if getattr(message, "grouped_id", None):
-                        async for msg in client.iter_messages(channel_entity, limit=None, reverse=True):
-                            if getattr(msg, "grouped_id", None) == message.grouped_id:
-                                clean_title = re.sub(r'[^\w\-_. ]', '_', info['title'])[:30]
-                                ext = "jpg"
-                                if msg.photo:
-                                    path = await client.download_media(
-                                        msg.photo,
-                                        file=os.path.join(channel_folder, f"{clean_title}_{msg.id}.jpg")
-                                    )
-                                elif msg.document:
-                                    ext = msg.file.name.split('.')[-1] if msg.file else "dat"
-                                    path = await client.download_media(
-                                        msg.document,
-                                        file=os.path.join(channel_folder, f"{clean_title}_{msg.id}.{ext}")
-                                    )
-                                else:
-                                    continue
-                                if path:
-                                    post_images.append(path.replace('\\', '/'))
-                    else:
-                        clean_title = re.sub(r'[^\w\-_. ]', '_', info['title'])[:30]
-                        ext = "jpg"
-                        if message.photo:
-                            path = await client.download_media(
-                                message.photo,
-                                file=os.path.join(channel_folder, f"{clean_title}_{message.id}.jpg")
-                            )
-                        elif message.document:
-                            ext = message.file.name.split('.')[-1] if message.file else "dat"
-                            path = await client.download_media(
-                                message.document,
-                                file=os.path.join(channel_folder, f"{clean_title}_{message.id}.{ext}")
-                            )
-                        else:
-                            path = None
-                        if path:
-                            post_images.append(path.replace('\\', '/'))
-
-                except Exception as e:
-                    print(f"❌ Error downloading image(s): {e}")
-
-                post_data = {
-                    "title": info["title"],
-                    "description": info["description"],
-                    "price": info["price"],
-                    "phone": info["phone"],
-                    "images": post_images if post_images else None,
-                    "location": info["location"],
-                    "date": message.date.strftime("%Y-%m-%d %H:%M:%S"),
-                    "channel": info["channel_mention"] if info["channel_mention"] else channel,
-                    "post_link": f"https://t.me/{channel.replace('@','')}/{message.id}"
-                }
-
-                results.append(post_data)
-
-            # Cleanup old images only for 7-day scrape
-            if timeframe == "7d":
-                for file in os.listdir(channel_folder):
-                    file_path = os.path.join(channel_folder, file)
-                    if os.path.isfile(file_path):
-                        file_mtime = datetime.utcfromtimestamp(os.path.getmtime(file_path))
-                        if file_mtime < cutoff.replace(tzinfo=None):
-                            os.remove(file_path)
-                            print(f"🗑️ Deleted old image: {file_path}")
+                source_messages.append({
+                    'text': message.text,
+                    'date': message.date,
+                    'source_channel': channel,
+                    'source_message_id': message.id
+                })
 
         except Exception as e:
             print(f"❌ Error processing channel {channel}: {e}")
             continue
+
+    # ✅ SECOND: Iterate through target channel and match messages
+    print(f"🔍 Searching for matching messages in target channel...")
+    
+    async for message in client.iter_messages(target_entity, limit=None):
+        if not message.text:
+            continue
+
+        if message.date < cutoff:
+            break
+
+        if message.id in seen_posts:
+            continue
+        seen_posts.add(message.id)
+
+        # ✅ Find matching message from source channels
+        matching_source = None
+        for source_msg in source_messages:
+            # Simple text matching - you might want to make this more robust
+            if (source_msg['text'] in message.text or 
+                message.text in source_msg['text'] or
+                source_msg['text'][:100] in message.text):  # Match first 100 chars
+                matching_source = source_msg
+                break
+
+        if not matching_source:
+            continue
+
+        info = extract_info(message.text, message.id)
+        
+        # ✅ Build permalink from TARGET channel (where the message actually exists)
+        if getattr(target_entity, "username", None):
+            post_link = f"https://t.me/{target_entity.username}/{message.id}"
+        else:
+            internal_id = str(target_entity.id)
+            if internal_id.startswith("-100"):
+                internal_id = internal_id[4:]
+            post_link = f"https://t.me/c/{internal_id}/{message.id}"
+
+        # Remove image downloading - keep empty images array
+        post_images = []
+
+        post_data = {
+            "title": info["title"],
+            "description": info["description"],
+            "price": info["price"],
+            "phone": info["phone"],
+            "images": post_images,
+            "location": info["location"],
+            "date": message.date.strftime("%Y-%m-%d %H:%M:%S"),
+            "channel": info["channel_mention"] if info["channel_mention"] else matching_source['source_channel'],
+            "post_link": post_link,   
+            "product_ref": str(message.id)   # Use the target channel message ID
+        }
+        results.append(post_data)
 
     # Keep only posts newer than cutoff
     results = [
@@ -203,19 +186,13 @@ async def scrape_and_save(client, timeframe="24h"):
         if datetime.strptime(post["date"], "%Y-%m-%d %H:%M:%S") >= cutoff.replace(tzinfo=None)
     ]
 
-    # ✅ Add ID column
-    for idx, post in enumerate(results, start=1):
-        post["id"] = idx
-
     # === Save to Parquet ===
     df = pd.DataFrame(results)
     filename_parquet = f"scraped_{timeframe}.parquet"
     df.to_parquet(filename_parquet, engine="pyarrow", index=False)
 
-    print(f"\n✅ Done. Scraped {len(results)} posts ({timeframe}) from {len(channels)} channels.")
-    print(f"📁 Data saved to {filename_parquet}, images → /{DOWNLOAD_DIR}/")
-
-
+    print(f"\n✅ Done. Scraped {len(results)} posts ({timeframe}) from target channel.")
+    print(f"📁 Data saved to {filename_parquet}")
 # === 📤 Forwarding Function with duplicate prevention & cleanup ===
 async def forward_messages(user, bot, days: int):
     now = datetime.now(timezone.utc)
@@ -294,6 +271,8 @@ async def forward_messages(user, bot, days: int):
         print(f"\n✅ Done. Forwarded {total_forwarded} new posts ({days}d) to {TARGET_CHANNEL}.")
     else:
         print("\nℹ️ No new posts to forward. All messages already exist in the target channel.")
+
+
 # === ⚡ Main execution block ===
 async def main():
     user = TelegramClient(USER_SESSION, API_ID, API_HASH)
@@ -301,15 +280,6 @@ async def main():
 
     bot = TelegramClient(BOT_SESSION, API_ID, API_HASH)
     await bot.start(bot_token=BOT_TOKEN)
-
-    # Test channel access first
-    print("🔍 Testing channel access...")
-    for channel in channels:
-        try:
-            entity = await user.get_entity(channel)
-            print(f"✅ {channel}: {entity.title}")
-        except Exception as e:
-            print(f"❌ {channel}: {e}")
 
     # 24h scrape → parquet
     print("\nStarting 24-hour scrape to parquet...")
@@ -325,6 +295,8 @@ async def main():
 
     await user.disconnect()
     await bot.disconnect()
+
+
 
 if __name__ == "__main__":
     asyncio.run(main())
